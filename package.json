@@ -1,0 +1,25 @@
+{
+  "name": "techinsight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered knowledge base for tech articles. Monorepo root.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.10.0",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "fe:dev": "pnpm --filter frontend dev",
+    "fe:build": "pnpm --filter frontend build",
+    "fe:lint": "pnpm --filter frontend lint",
+    "fe:check": "pnpm --filter frontend check",
+    "fe:check:fix": "pnpm --filter frontend check:fix",
+    "check": "pnpm format:check && pnpm fe:check",
+    "fix": "pnpm format && pnpm fe:check:fix"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

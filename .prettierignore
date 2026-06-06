@@ -1,0 +1,26 @@
+# Biome 管轄 — frontend 内のフォーマットはすべて Biome に任せる（重複排除）
+frontend/
+
+# 依存・ビルド成果物
+node_modules/
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/.turbo/
+
+# Python
+backend/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# データ
+data/*.csv
+
+# その他
+.git/
+*.lock
+*.lockb
+pnpm-lock.yaml

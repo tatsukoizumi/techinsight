@@ -16,10 +16,14 @@ TechInsight は技術記事を対象とした AI 搭載ナレッジベース。C
 - **DB:** PostgreSQL 16 + `pgvector` 拡張
 - **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`（384 次元、ローカル動作・APIキー不要がデフォルト）。`OPENAI_API_KEY` が環境変数にあれば OpenAI `text-embedding-3-small` に切り替える provider 抽象を持つ。
 - **Infra:** Docker Compose（`db` / `backend` / `frontend` / 一回限りの `migrator` サービス）
+- **Monorepo / 開発ツール:** pnpm workspaces。**Prettier**（root: Markdown / YAML / root JSON）+ **Biome**（frontend: TS/TSX/JS/JSON の Lint + Format + Import 並び替え）。Backend 側は **Ruff**（Lint + Format）。役割が重複しないよう `.prettierignore` で `frontend/` を除外している。
 
 ## 主要コマンド
 
 ```bash
+# 初回セットアップ（pnpm workspace: ルートで1回叩けば frontend も含めて入る）
+pnpm install
+
 # 全サービス起動（DBマイグレーション + CSV取り込み + API + フロント）
 docker compose up --build
 
@@ -28,17 +32,20 @@ docker compose up db
 cd backend && uv sync && uv run uvicorn app.main:app --reload
 
 # フロントエンドのみ
-cd frontend && pnpm install && pnpm dev
+pnpm fe:dev                                    # = pnpm --filter frontend dev
 
 # テスト
 cd backend && uv run pytest                    # 全テスト
 cd backend && uv run pytest tests/test_search.py::test_semantic_ranking -v  # 単体
-cd frontend && pnpm test                       # Vitest
-cd frontend && pnpm test:e2e                   # Playwright（任意）
+pnpm --filter frontend test                    # Vitest
+pnpm --filter frontend test:e2e                # Playwright（任意）
 
 # Lint / Format
+pnpm check                                     # Prettier(md/yaml) + Biome(TS) を一気に検査
+pnpm fix                                       # 上記を一気に自動修正
+pnpm format / pnpm format:check                # Prettier 単体（Markdown / YAML / root JSON）
+pnpm fe:check / pnpm fe:check:fix              # Biome 単体（frontend の TS/TSX/JS/JSON）
 cd backend && uv run ruff check . && uv run ruff format .
-cd frontend && pnpm lint && pnpm typecheck
 
 # マイグレーション
 cd backend && uv run alembic revision --autogenerate -m "message"
@@ -51,23 +58,29 @@ docker compose run --rm backend python -m app.scripts.ingest_articles data/artic
 ## アーキテクチャ要点
 
 ### 検索の二層構造（最重要）
+
 セマンティック検索だけだと完全一致や固有名詞に弱いため、**ハイブリッド検索**を実装する：
+
 1. **キーワード検索:** PostgreSQL の `tsvector` + GIN インデックス（`title`, `content` を generated column で `tsvector` 化）
 2. **セマンティック検索:** `content` の embedding を pgvector の `vector(384)` カラムに保存、`HNSW` インデックスでコサイン類似度検索
 3. **融合:** Reciprocal Rank Fusion (RRF) で両者をマージ。`GET /api/search?q=...&mode=hybrid|keyword|semantic` で切替可能にする。
 
 10K 件想定のスケール要件のため、**インデックス設計が肝**：
+
 - `embedding` カラム: `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`
 - `search_tsv` generated column + GIN
 - `category`, `published_at` に B-tree（フィルタ + ソート用）
 
 ### Embedding プロバイダ抽象
+
 `backend/app/services/embeddings/` 配下に `BaseEmbedder` インターフェースを置き、`LocalEmbedder`（sentence-transformers）と `OpenAIEmbedder` を実装。`Settings.embedding_provider` で切替。**評価者は API キーを持たない前提なので、デフォルトは local。**OpenAI 側は 1536 次元になるため、provider 切替時は再 ingest が必要 — README にその旨を明記する。
 
 ### CSV 取り込みパイプライン
+
 `docker compose up` の初回起動時、`migrator` サービスが `alembic upgrade head` → `python -m app.scripts.ingest_articles` を実行。再実行時は ID で UPSERT し、`content_hash` が変わったレコードのみ embedding を再計算する（10K スケールで全件再計算を避ける）。
 
 ### Backend レイヤリング
+
 - `app/api/` — FastAPI ルーター（薄く、Pydantic スキーマで I/O のみ）
 - `app/services/` — ビジネスロジック（検索融合、embedding 生成）
 - `app/repositories/` — SQLAlchemy クエリ（テスト容易化のため抽象）
@@ -78,6 +91,7 @@ docker compose run --rm backend python -m app.scripts.ingest_articles data/artic
 非同期 SQLAlchemy + `asyncpg` ドライバ。embedding 計算は CPU バウンドなので `run_in_threadpool` で逃がす。
 
 ### Frontend 構造
+
 - `app/` — Next.js App Router（記事一覧、検索、詳細はモーダル）
 - `components/` — 再利用 UI（`ArticleCard`, `ArticleModal`, `SearchBar`）
 - `lib/api/` — 型付き API クライアント（OpenAPI から生成、または手書きで十分）

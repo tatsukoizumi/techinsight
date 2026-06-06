@@ -4,15 +4,15 @@
 
 ## 0. 設計の核となる判断
 
-| 論点 | 採用 | 理由 |
-| --- | --- | --- |
-| ベクトル DB | **PostgreSQL + pgvector** | 別サービスを足さず Docker Compose をシンプルに保てる。10K 件規模なら HNSW で十分な性能。 |
-| Embedding | **sentence-transformers `all-MiniLM-L6-v2` (384d)** をデフォルト、OpenAI を任意 | **評価者は API キーを持たない**前提。ローカルモデルでオフライン動作させ、provider 抽象で OpenAI も差し替え可能に。 |
-| 検索方式 | **ハイブリッド（BM25/tsvector + ベクトル）を RRF で融合** | セマンティックのみだと固有名詞・短いクエリに弱い。実用性のため両方を融合。 |
-| マイグレーション | **Alembic** | 標準。`pgvector` 拡張作成、tsvector generated column、HNSW インデックス作成すべてを Alembic で管理。 |
-| 取り込み | **`migrator` 一回限りサービス**が `alembic upgrade head` → `ingest_articles` を実行 | `docker compose up` 1 コマンドで完結させる要件を満たす。UPSERT + `content_hash` で冪等。 |
-| API 設計 | **REST + Pydantic v2**、ページネーションあり | OpenAPI を自動生成、frontend に型を流せる。 |
-| Frontend データ取得 | **TanStack Query** | キャッシュ・楽観更新・refetch を最小コードで実現。 |
+| 論点                | 採用                                                                                | 理由                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| ベクトル DB         | **PostgreSQL + pgvector**                                                           | 別サービスを足さず Docker Compose をシンプルに保てる。10K 件規模なら HNSW で十分な性能。                           |
+| Embedding           | **sentence-transformers `all-MiniLM-L6-v2` (384d)** をデフォルト、OpenAI を任意     | **評価者は API キーを持たない**前提。ローカルモデルでオフライン動作させ、provider 抽象で OpenAI も差し替え可能に。 |
+| 検索方式            | **ハイブリッド（BM25/tsvector + ベクトル）を RRF で融合**                           | セマンティックのみだと固有名詞・短いクエリに弱い。実用性のため両方を融合。                                         |
+| マイグレーション    | **Alembic**                                                                         | 標準。`pgvector` 拡張作成、tsvector generated column、HNSW インデックス作成すべてを Alembic で管理。               |
+| 取り込み            | **`migrator` 一回限りサービス**が `alembic upgrade head` → `ingest_articles` を実行 | `docker compose up` 1 コマンドで完結させる要件を満たす。UPSERT + `content_hash` で冪等。                           |
+| API 設計            | **REST + Pydantic v2**、ページネーションあり                                        | OpenAPI を自動生成、frontend に型を流せる。                                                                        |
+| Frontend データ取得 | **TanStack Query**                                                                  | キャッシュ・楽観更新・refetch を最小コードで実現。                                                                 |
 
 ## 1. ディレクトリ構成（最終形）
 
@@ -123,21 +123,22 @@ CREATE INDEX articles_published_at_idx ON articles (published_at DESC);
 
 ## 3. API 設計（v1）
 
-| Method | Path | 概要 |
-| --- | --- | --- |
-| GET    | `/api/v1/health` | ヘルスチェック |
-| GET    | `/api/v1/articles` | 一覧（`?page=&size=&category=&author=&sort=`） |
-| GET    | `/api/v1/articles/{id}` | 単体取得 |
-| POST   | `/api/v1/articles` | 新規作成（embedding 自動生成） |
-| PUT    | `/api/v1/articles/{id}` | 更新（content 変化時のみ re-embed） |
-| DELETE | `/api/v1/articles/{id}` | 削除 |
-| GET    | `/api/v1/search` | `?q=&mode=hybrid|keyword|semantic&limit=&category=` |
+| Method | Path                    | 概要                                           |
+| ------ | ----------------------- | ---------------------------------------------- | ------- | -------------------------- |
+| GET    | `/api/v1/health`        | ヘルスチェック                                 |
+| GET    | `/api/v1/articles`      | 一覧（`?page=&size=&category=&author=&sort=`） |
+| GET    | `/api/v1/articles/{id}` | 単体取得                                       |
+| POST   | `/api/v1/articles`      | 新規作成（embedding 自動生成）                 |
+| PUT    | `/api/v1/articles/{id}` | 更新（content 変化時のみ re-embed）            |
+| DELETE | `/api/v1/articles/{id}` | 削除                                           |
+| GET    | `/api/v1/search`        | `?q=&mode=hybrid                               | keyword | semantic&limit=&category=` |
 
 レスポンスは `{ items, total, page, size }` 形式。検索結果は `score` を含める（融合後の RRF スコア）。
 
 ## 4. 検索ロジック
 
 ### 4.1 キーワード
+
 ```sql
 SELECT *, ts_rank(search_tsv, plainto_tsquery('english', :q)) AS score
 FROM articles
@@ -147,6 +148,7 @@ LIMIT :k;
 ```
 
 ### 4.2 セマンティック
+
 ```sql
 SELECT *, 1 - (embedding <=> :query_vec) AS score
 FROM articles
@@ -156,6 +158,7 @@ LIMIT :k;
 ```
 
 ### 4.3 ハイブリッド（RRF）
+
 1. キーワード Top-N（例 50）とセマンティック Top-N を取得
 2. 各記事の最終スコア `= Σ 1 / (k + rank)`（k=60 が定石）
 3. スコア降順で limit 件返す
@@ -165,6 +168,7 @@ LIMIT :k;
 ## 5. CSV 取り込み
 
 擬似コード：
+
 ```python
 async def ingest(csv_path: Path):
     embedder = get_embedder()
@@ -185,7 +189,7 @@ services:
   db:
     image: pgvector/pgvector:pg16
     environment: { POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB }
-    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck: pg_isready
   migrator:
     build: ./backend
@@ -193,19 +197,19 @@ services:
     command: >
       bash -c "alembic upgrade head &&
                python -m app.scripts.ingest_articles /app/data/articles.csv"
-    volumes: [ "./data:/app/data:ro" ]
-    restart: "no"                        # 一回限り
+    volumes: ["./data:/app/data:ro"]
+    restart: "no" # 一回限り
   backend:
     build: ./backend
     depends_on:
-      db:       { condition: service_healthy }
+      db: { condition: service_healthy }
       migrator: { condition: service_completed_successfully }
-    ports: [ "8000:8000" ]
+    ports: ["8000:8000"]
   frontend:
     build: ./frontend
     depends_on: { backend: { condition: service_started } }
     environment: { NEXT_PUBLIC_API_BASE: "http://localhost:8000" }
-    ports: [ "3000:3000" ]
+    ports: ["3000:3000"]
 volumes: { pgdata: {} }
 ```
 
@@ -219,6 +223,7 @@ volumes: { pgdata: {} }
 - 「新規作成」 → `ArticleForm` をモーダルで開く（title / content / author / category / published_at）
 
 UX 工夫：
+
 - 検索の debounced auto-submit（300ms）
 - セマンティック検索結果に **マッチした類似度スコアをチップで表示**
 - 削除時は confirm モーダル
@@ -257,10 +262,10 @@ UX 工夫：
 
 ## 11. リスクと対策
 
-| リスク | 対策 |
-| --- | --- |
+| リスク                                               | 対策                                                                                                                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | sentence-transformers の初回モデルダウンロードが遅い | Dockerfile の build 時に `RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"` でイメージに焼き込む |
-| CSV 取り込みでメモリ不足 | バッチ embedding + chunk insert（CSV 全行をメモリに載せない設計） |
-| Apple Silicon vs x86 の image 差異 | `pgvector/pgvector:pg16` は両対応、Python 系も slim-bookworm を使用 |
-| HNSW インデックスの構築時間 | 1 万件程度なら数秒〜数十秒。INSERT 後に再構築せずインデックス先張りで OK |
-| OpenAI 切り替え時の次元不一致 | `Settings.embedding_dim` をマイグレーションパラメータ化はしない（複雑化）。README に「provider 切替時は volume を消して再起動」と明記 |
+| CSV 取り込みでメモリ不足                             | バッチ embedding + chunk insert（CSV 全行をメモリに載せない設計）                                                                                              |
+| Apple Silicon vs x86 の image 差異                   | `pgvector/pgvector:pg16` は両対応、Python 系も slim-bookworm を使用                                                                                            |
+| HNSW インデックスの構築時間                          | 1 万件程度なら数秒〜数十秒。INSERT 後に再構築せずインデックス先張りで OK                                                                                       |
+| OpenAI 切り替え時の次元不一致                        | `Settings.embedding_dim` をマイグレーションパラメータ化はしない（複雑化）。README に「provider 切替時は volume を消して再起動」と明記                          |
