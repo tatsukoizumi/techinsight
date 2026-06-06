@@ -1,0 +1,16 @@
+# ランタイム / ツールバージョンの single source of truth（ホスト・Docker 共通）
+# 使い方: ルートで `mise install` → `corepack enable`
+
+[tools]
+node = "24.16.0"
+# python = "3.14.5"  # backend 実装フェーズで有効化
+
+[env]
+# package.json の "packageManager" 指定を corepack に尊重させる（自動書き換えを防ぐ）
+COREPACK_ENABLE_AUTO_PIN = "0"
+# 評価者環境で corepack の対話プロンプトを抑制
+COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
+
+[tasks.setup]
+description = "初回セットアップ: corepack 有効化 + 依存インストール"
+run = ["corepack enable", "pnpm install"]

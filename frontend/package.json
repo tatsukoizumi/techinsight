@@ -3,17 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "echo 'Next.js は次フェーズで追加します'",
-    "build": "echo 'Next.js は次フェーズで追加します'",
-    "start": "echo 'Next.js は次フェーズで追加します'",
+    "dev": "echo 'Next.js は次フェーズで追加します' && exit 0",
+    "build": "echo 'Next.js は次フェーズで追加します' && exit 0",
+    "start": "echo 'Next.js は次フェーズで追加します' && exit 0",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check --write .",
+    "knip": "knip",
+    "knip:fix": "knip --fix",
+    "quality": "biome check . && knip"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.0"
+    "@biomejs/biome": "^2.4.16",
+    "knip": "^6.16.0"
   }
 }

@@ -2,6 +2,14 @@
 
 最終更新: 2026-06-06
 
+## 0a. プロジェクト基本ルール（CLAUDE.md と同期）
+
+1. フレームワーク・言語は最新バージョン（Node 24 LTS / Python 3.14 / FastAPI / Next.js / Biome / Prettier）
+2. ランタイム・ツールは **mise** で一元管理（ホスト・Docker 共通）
+3. 不要なライブラリは入れない（極力薄い構成）
+4. dead-code は削除（未使用 export / file / dep）
+5. **品質ツール**で担保: frontend = Biome + Knip、backend = Ruff、docs = Prettier
+
 ## 0. 設計の核となる判断
 
 | 論点                | 採用                                                                                | 理由                                                                                                               |
@@ -19,6 +27,11 @@
 ```
 techinsight/
 ├── docker-compose.yml
+├── mise.toml                    # Node / Python のバージョン定義（ホスト・Docker 共通）
+├── pnpm-workspace.yaml
+├── package.json                 # workspace root（prettier devDep + 統合スクリプト）
+├── .prettierrc.json / .prettierignore
+├── .editorconfig
 ├── .env.example
 ├── README.md                    # セットアップ・API 設計・DB 設計・工夫点を統合
 ├── CLAUDE.md
@@ -31,7 +44,7 @@ techinsight/
 │   └── api-design.md            # 簡易 API 設計書（成果物）
 ├── backend/
 │   ├── pyproject.toml           # uv 管理
-│   ├── Dockerfile
+│   ├── Dockerfile               # mise で Python 3.14 を入れる
 │   ├── alembic.ini
 │   ├── alembic/
 │   │   └── versions/
@@ -65,7 +78,9 @@ techinsight/
 │       └── test_search.py
 ├── frontend/
 │   ├── package.json
-│   ├── Dockerfile
+│   ├── biome.json               # Biome 2.x（Lint + Format + Import 並び替え）
+│   ├── knip.json                # Knip（未使用 export / file / dep 検出）
+│   ├── Dockerfile               # mise で Node 24 を入れる
 │   ├── next.config.mjs
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json

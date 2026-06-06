@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI-powered knowledge base for tech articles. Monorepo root.",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@11.5.2",
   "engines": {
-    "node": ">=20.10.0",
-    "pnpm": ">=9"
+    "node": ">=24",
+    "pnpm": ">=11"
   },
   "scripts": {
     "format": "prettier --write .",
@@ -16,8 +16,11 @@
     "fe:lint": "pnpm --filter frontend lint",
     "fe:check": "pnpm --filter frontend check",
     "fe:check:fix": "pnpm --filter frontend check:fix",
+    "fe:knip": "pnpm --filter frontend knip",
+    "fe:quality": "pnpm --filter frontend quality",
     "check": "pnpm format:check && pnpm fe:check",
-    "fix": "pnpm format && pnpm fe:check:fix"
+    "fix": "pnpm format && pnpm fe:check:fix",
+    "quality": "pnpm format:check && pnpm fe:quality"
   },
   "devDependencies": {
     "prettier": "^3.3.3"
