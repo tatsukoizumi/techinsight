@@ -1,6 +1,6 @@
 # TechInsight 実装計画
 
-最終更新: 2026-06-06
+最終更新: 2026-06-07
 
 ## 0a. プロジェクト基本ルール（CLAUDE.md と同期）
 
@@ -12,21 +12,22 @@
 
 ## 0. 設計の核となる判断
 
-| 論点                | 採用                                                                                | 理由                                                                                                               |
-| ------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| ベクトル DB         | **PostgreSQL + pgvector**                                                           | 別サービスを足さず Docker Compose をシンプルに保てる。10K 件規模なら HNSW で十分な性能。                           |
-| Embedding           | **sentence-transformers `all-MiniLM-L6-v2` (384d)** をデフォルト、OpenAI を任意     | **評価者は API キーを持たない**前提。ローカルモデルでオフライン動作させ、provider 抽象で OpenAI も差し替え可能に。 |
-| 検索方式            | **ハイブリッド（BM25/tsvector + ベクトル）を RRF で融合**                           | セマンティックのみだと固有名詞・短いクエリに弱い。実用性のため両方を融合。                                         |
-| マイグレーション    | **Alembic**                                                                         | 標準。`pgvector` 拡張作成、tsvector generated column、HNSW インデックス作成すべてを Alembic で管理。               |
-| 取り込み            | **`migrator` 一回限りサービス**が `alembic upgrade head` → `ingest_articles` を実行 | `docker compose up` 1 コマンドで完結させる要件を満たす。UPSERT + `content_hash` で冪等。                           |
-| API 設計            | **REST + Pydantic v2**、ページネーションあり                                        | OpenAPI を自動生成、frontend に型を流せる。                                                                        |
-| Frontend データ取得 | **TanStack Query**                                                                  | キャッシュ・楽観更新・refetch を最小コードで実現。                                                                 |
+| 論点                | 採用                                                                                | 理由                                                                                                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ベクトル DB         | **PostgreSQL + pgvector**                                                           | 別サービスを足さず Docker Compose をシンプルに保てる。10K 件規模なら HNSW で十分な性能。                                                                               |
+| Embedding           | **sentence-transformers `all-MiniLM-L6-v2` (384d)** をデフォルト、OpenAI を任意     | **評価者は API キーを持たない**前提。ローカルモデルでオフライン動作させ、provider 抽象で OpenAI も差し替え可能に。次元は `Settings.embedding_dim` を SSOT 化（後述）。 |
+| 検索方式            | **ハイブリッド（BM25/tsvector + ベクトル）を RRF で融合**                           | セマンティックのみだと固有名詞・短いクエリに弱い。実用性のため両方を融合。                                                                                             |
+| マイグレーション    | **Alembic**                                                                         | 標準。`pgvector` 拡張作成、tsvector generated column、HNSW インデックス作成すべてを Alembic で管理。                                                                   |
+| 取り込み            | **`migrator` 一回限りサービス**が `alembic upgrade head` → `ingest_articles` を実行 | `docker compose up` 1 コマンドで完結させる要件を満たす。UPSERT + `content_hash` で冪等。                                                                               |
+| API 設計            | **REST + Pydantic v2**、ページネーションあり                                        | OpenAPI を自動生成、frontend に型を流せる。                                                                                                                            |
+| Frontend データ取得 | **TanStack Query**                                                                  | キャッシュ・楽観更新・refetch を最小コードで実現。                                                                                                                     |
 
 ## 1. ディレクトリ構成（最終形）
 
 ```
 techinsight/
 ├── docker-compose.yml
+├── docker-compose.override.yml  # 開発用: backend を --reload + bind mount（up 時に自動マージ）
 ├── mise.toml                    # Node / Python のバージョン定義（ホスト・Docker 共通）
 ├── pnpm-workspace.yaml
 ├── package.json                 # workspace root（prettier devDep + 統合スクリプト）
@@ -73,7 +74,7 @@ techinsight/
 │   │   └── scripts/
 │   │       └── ingest_articles.py
 │   └── tests/
-│       ├── conftest.py          # testcontainers or sqlite fallback
+│       ├── conftest.py          # testcontainers（本物の pgvector PG）
 │       ├── test_articles_api.py
 │       └── test_search.py
 ├── frontend/
@@ -118,7 +119,7 @@ CREATE TABLE articles (
     category      TEXT        NOT NULL,
     published_at  TIMESTAMPTZ NOT NULL,
     content_hash  TEXT        NOT NULL,            -- embedding 再計算の判定用 (sha256(title || content))
-    embedding     vector(384),                     -- provider 切替時は次元数のみ変更
+    embedding     vector(384),                     -- 次元は Settings.embedding_dim で生成（下記）
     search_tsv    tsvector GENERATED ALWAYS AS (
                     setweight(to_tsvector('english', coalesce(title,'')),   'A') ||
                     setweight(to_tsvector('english', coalesce(content,'')), 'B')
@@ -136,11 +137,15 @@ CREATE INDEX articles_published_at_idx ON articles (published_at DESC);
 
 トリガで `updated_at` を自動更新。CSV の `id` は IMPORT 時に `setval` でシーケンスをずらす（新規作成時の衝突回避）。
 
+**埋め込み次元（384）の扱い:** `vector(384)` と HNSW インデックスはハードコードせず、Alembic マイグレーションが `Settings.embedding_dim`（local=384 / OpenAI=1536）を読んで生成する（SSOT 化）。HNSW は固定次元のため、provider を切り替える場合は **DB volume 削除 → 再マイグレーション → 再 ingest** が必要（README に明記）。デフォルト local では一切意識不要。
+
+**Alembic は async 構成:** `DATABASE_URL` は `asyncpg` ドライバ。`alembic/env.py` を `async_engine_from_config` + `run_sync` で非同期実行する（migration 用に別の sync URL を持たない、薄い構成）。`migrator` サービスが `alembic upgrade head` を実行。
+
 ## 3. API 設計（v1）
 
 | Method | Path                    | 概要                                           |
 | ------ | ----------------------- | ---------------------------------------------- | ------- | -------------------------- |
-| GET    | `/api/v1/health`        | ヘルスチェック                                 |
+| GET    | `/health`               | ヘルスチェック（非バージョン・インフラ用）     |
 | GET    | `/api/v1/articles`      | 一覧（`?page=&size=&category=&author=&sort=`） |
 | GET    | `/api/v1/articles/{id}` | 単体取得                                       |
 | POST   | `/api/v1/articles`      | 新規作成（embedding 自動生成）                 |
@@ -149,6 +154,8 @@ CREATE INDEX articles_published_at_idx ON articles (published_at DESC);
 | GET    | `/api/v1/search`        | `?q=&mode=hybrid                               | keyword | semantic&limit=&category=` |
 
 レスポンスは `{ items, total, page, size }` 形式。検索結果は `score` を含める（融合後の RRF スコア）。
+
+> **`/health` について:** Docker healthcheck（compose / Dockerfile）が叩くインフラ用エンドポイントは**非バージョンの `/health`**（現状 `main.py` に実装済）に固定する。業務 API のみ `/api/v1` 配下に置く。`/api/v1/health` は設けず、healthcheck URL を壊さない。
 
 ## 4. 検索ロジック
 
@@ -230,6 +237,8 @@ volumes: { pgdata: {} }
 
 > `migrator` を分離することで backend 本体は起動が速く、再起動時に重い処理が走らない。
 
+開発時のホットリロードは `docker-compose.override.yml`（`up` 時に自動マージ）で backend に `--reload` と `./backend/app` の bind mount を付与する。本番相当で起動したい場合は `docker compose -f docker-compose.yml up` で override を無効化できる。`.venv` は image 側を使い続けるため `app/` のみを上書きする。
+
 ## 7. フロントエンド画面
 
 - `/`: 検索バー（モード選択タブ：ハイブリッド/キーワード/セマンティック）+ カテゴリフィルタ + 記事カード一覧 + ページネーション + 「新規作成」ボタン
@@ -247,6 +256,7 @@ UX 工夫：
 ## 8. 実装フェーズ（推奨順序）
 
 1. ~~**インフラ骨組み**~~ ✅ 完了 — `docker-compose.yml`（4 サービス）、mise ベースの backend/frontend Dockerfile、最小 FastAPI（`/health`）、`.env.example` まで。`docker compose up` で db + backend が起動し `/health` が 200 を返す状態。migrator と frontend は placeholder コマンドで定義済（次フェーズで実体化）。
+   - 計画レビューに伴う微修正（2026-06-07）: `pyproject.toml` の不正な `readme` 参照を除去、backend のホットリロードを `docker-compose.override.yml` に分離（本番 compose から bind mount を撤去）、API パス方針（`/health` 非バージョン + 業務 `/api/v1`）を CLAUDE.md と同期。
 2. **DB & マイグレーション** — Alembic 設定、初回 migration（pgvector 拡張 + articles テーブル + 各インデックス）。`migrator` サービスを実 alembic コマンドに差し替え。
 3. **Embedding サービス** — local provider 実装 → unit test
 4. **CSV 取り込みスクリプト** — 1,000 件取り込み、所要時間を計測。`migrator` で alembic 後に実行されるよう繋ぐ。
@@ -260,7 +270,7 @@ UX 工夫：
 
 ## 9. テスト方針
 
-- **Backend:** pytest + httpx（API 統合）。DB は testcontainers-python で本物の pgvector PostgreSQL を立てる。Embedding は `LocalEmbedder` を deterministic な mock に差し替えてベクトル検索のロジックを検証。
+- **Backend:** pytest + httpx（API 統合）。DB は testcontainers-python で**本物の pgvector PostgreSQL** を立てる（sqlite は pgvector / tsvector 非対応のため fallback しない）。RRF 融合は純粋関数として切り出し、DB 非依存の単体テストで順位を検証する。Embedding は `LocalEmbedder` を deterministic な mock に差し替えてベクトル検索のロジックを検証。テスト用 dev 依存（`pytest-asyncio` / `testcontainers` 等）はテストフェーズで追加。
 - **Frontend:** Vitest で hook / component のユニット。E2E は時間が余れば Playwright で「新規作成 → 一覧反映 → 検索ヒット → 編集 → 削除」を一本通す。
 - **CI（任意）:** GitHub Actions で lint + test。本人開発だが「チーム開発を意識」要件への布石。
 
@@ -277,10 +287,12 @@ UX 工夫：
 
 ## 11. リスクと対策
 
-| リスク                                               | 対策                                                                                                                                                           |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sentence-transformers の初回モデルダウンロードが遅い | Dockerfile の build 時に `RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"` でイメージに焼き込む |
-| CSV 取り込みでメモリ不足                             | バッチ embedding + chunk insert（CSV 全行をメモリに載せない設計）                                                                                              |
-| Apple Silicon vs x86 の image 差異                   | `pgvector/pgvector:pg16` は両対応、Python 系も slim-bookworm を使用                                                                                            |
-| HNSW インデックスの構築時間                          | 1 万件程度なら数秒〜数十秒。INSERT 後に再構築せずインデックス先張りで OK                                                                                       |
-| OpenAI 切り替え時の次元不一致                        | `Settings.embedding_dim` をマイグレーションパラメータ化はしない（複雑化）。README に「provider 切替時は volume を消して再起動」と明記                          |
+| リスク                                                                  | 対策                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Python 3.14 で torch/sentence-transformers が入らない**（最大リスク） | **検証済み（2026-06-07）**: torch 2.12.0 は cp314 wheel を linux x86_64 / aarch64 / macOS arm64 向けに配布、transformers は pure-python、tokenizers は abi3 wheel。**Python 3.14 + ローカル埋め込みは成立**。lockfile（`uv.lock`）で固定し再現性を担保                    |
+| torch 同梱による backend イメージ肥大・ビルド遅延                       | torch + モデル焼き込みで数百 MB〜GB 級になるのは許容。`uv sync` のレイヤキャッシュ + モデル焼き込みで**2 回目以降の `up` は高速**。CPU 版 torch のみ（CUDA 不要）で抑える                                                                                                 |
+| sentence-transformers の初回モデルダウンロードが遅い                    | Dockerfile の build 時に `RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"` でイメージに焼き込む。**`HF_HOME` を `app` ユーザ書込可能パスに設定**し、build 時 cache と実行時 cache を一致させて再 DL を防ぐ |
+| CSV 取り込みでメモリ不足                                                | バッチ embedding + chunk insert（CSV 全行をメモリに載せない設計）                                                                                                                                                                                                         |
+| Apple Silicon vs x86 の image 差異                                      | `pgvector/pgvector:pg16` は両対応、Python 系も slim-bookworm を使用。torch cp314 も両アーキの wheel あり（検証済）                                                                                                                                                        |
+| HNSW インデックスの構築時間                                             | 1 万件程度なら数秒〜数十秒。INSERT 後に再構築せずインデックス先張りで OK                                                                                                                                                                                                  |
+| OpenAI 切り替え時の次元不一致（384 vs 1536）                            | 次元は `Settings.embedding_dim` を SSOT 化し、マイグレーションがこの値でカラム・HNSW を生成。HNSW は固定次元のため切替には **volume 削除 → 再マイグレーション → 再 ingest** が必要 — README に明記。デフォルト local では無関係                                           |

@@ -73,9 +73,7 @@ services:
       timeout: 3s
       retries: 5
       start_period: 15s
-    # 開発時のホットリロード（uvicorn --reload と組み合わせ）
-    volumes:
-      - ./backend/app:/app/backend/app
+    # 開発時のホットリロード（--reload + bind mount）は docker-compose.override.yml 側で付与する。
 
   frontend:
     build:

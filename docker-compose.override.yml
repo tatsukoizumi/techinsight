@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# 開発用overlay`docker compose up` 実行時に自動でマージされる。
+# backend を uvicorn --reload で起動し、ソースを bind mount してホットリロードを効かせる。
+#
+# 本番相当（リロード無し）で起動したい場合はこのファイルを無効化する:
+#   docker compose -f docker-compose.yml up --build
+# ---------------------------------------------------------------------------
+
+services:
+  backend:
+    command:
+      - uv
+      - run
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload
+    volumes:
+      # .venv は image 側（/app/backend/.venv）を使い続けるため app/ だけ上書きする
+      - ./backend/app:/app/backend/app

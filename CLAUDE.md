@@ -77,7 +77,7 @@ docker compose run --rm backend python -m app.scripts.ingest_articles data/artic
 
 1. **キーワード検索:** PostgreSQL の `tsvector` + GIN インデックス（`title`, `content` を generated column で `tsvector` 化）
 2. **セマンティック検索:** `content` の embedding を pgvector の `vector(384)` カラムに保存、`HNSW` インデックスでコサイン類似度検索
-3. **融合:** Reciprocal Rank Fusion (RRF) で両者をマージ。`GET /api/search?q=...&mode=hybrid|keyword|semantic` で切替可能にする。
+3. **融合:** Reciprocal Rank Fusion (RRF) で両者をマージ。`GET /api/v1/search?q=...&mode=hybrid|keyword|semantic` で切替可能にする（業務 API は `/api/v1` 配下。インフラ用 `/health` のみ非バージョン）。
 
 10K 件想定のスケール要件のため、**インデックス設計が肝**：
 
@@ -87,7 +87,7 @@ docker compose run --rm backend python -m app.scripts.ingest_articles data/artic
 
 ### Embedding プロバイダ抽象
 
-`backend/app/services/embeddings/` 配下に `BaseEmbedder` インターフェースを置き、`LocalEmbedder`（sentence-transformers）と `OpenAIEmbedder` を実装。`Settings.embedding_provider` で切替。**評価者は API キーを持たない前提なので、デフォルトは local。**OpenAI 側は 1536 次元になるため、provider 切替時は再 ingest が必要 — README にその旨を明記する。
+`backend/app/services/embeddings/` 配下に `BaseEmbedder` インターフェースを置き、`LocalEmbedder`（sentence-transformers）と `OpenAIEmbedder` を実装。`Settings.embedding_provider` で切替。**評価者は API キーを持たない前提なので、デフォルトは local。**埋め込み次元は `Settings.embedding_dim`（local=384 / OpenAI=1536）を single source of truth とし、`embedding` カラムと HNSW インデックスは Alembic マイグレーションがこの値を読んで生成する。HNSW は固定次元のため、**provider を切り替える際は DB volume を削除 → 再マイグレーション → 再 ingest が必要**（README に明記）。
 
 ### CSV 取り込みパイプライン
 
