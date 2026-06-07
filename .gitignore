@@ -35,6 +35,9 @@ htmlcov/
 .env.*
 !.env.example
 
+# Claude Code（個人用ローカル設定。チーム共有は .claude/settings.json をコミット）
+.claude/settings.local.json
+
 # IDE / OS
 .DS_Store
 .idea/
