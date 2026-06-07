@@ -89,7 +89,11 @@ services:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    # 次フェーズで Next.js が入ったら `app/` を bind mount して HMR を効かせる。
+    # ソースを bind mount して HMR を効かせる（node_modules / .next は image 側を使う）。
+    volumes:
+      - ./frontend/app:/app/frontend/app
+      - ./frontend/components:/app/frontend/components
+      - ./frontend/lib:/app/frontend/lib
 
 volumes:
   pgdata:

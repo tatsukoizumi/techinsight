@@ -37,5 +37,5 @@ COPY --chown=node:node frontend/ ./frontend/
 
 WORKDIR /app/frontend
 EXPOSE 3000
-# 次フェーズで Next.js が入ったら CMD を `["pnpm", "dev"]` に差し替え、placeholder-server.mjs を削除する。
-CMD ["node", "placeholder-server.mjs"]
+# 開発サーバ。docker-compose.yml で app/ 等を bind mount して HMR を効かせる。
+CMD ["pnpm", "dev"]

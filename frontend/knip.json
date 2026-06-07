@@ -1,5 +1,4 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "next": true,
-  "ignore": ["placeholder-server.mjs"]
+  "next": true
 }

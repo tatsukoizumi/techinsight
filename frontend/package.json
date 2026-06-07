@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "echo 'Next.js は次フェーズで追加します' && exit 0",
-    "build": "echo 'Next.js は次フェーズで追加します' && exit 0",
-    "start": "echo 'Next.js は次フェーズで追加します' && exit 0",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
@@ -16,8 +17,26 @@
     "knip:fix": "knip --fix",
     "quality": "biome check . && knip"
   },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.16",
+    "@radix-ui/react-tabs": "^1.1.14",
+    "@tanstack/react-query": "^5.101.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
+    "next": "^16.2.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwind-merge": "^3.6.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "knip": "^6.16.0"
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "knip": "^6.16.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3"
   }
 }

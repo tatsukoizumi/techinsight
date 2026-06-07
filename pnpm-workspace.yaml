@@ -1,4 +1,8 @@
 packages:
   - "frontend"
+# Next.js の画像最適化に使う sharp のネイティブビルドを許可
+# （pnpm 11 はデフォルトでビルドスクリプトをブロックするため）。
+allowBuilds:
+  sharp: true
 minimumReleaseAgeExclude:
   - knip@6.16.0

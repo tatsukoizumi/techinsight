@@ -5,6 +5,10 @@ node_modules/
 .turbo/
 dist/
 build/
+
+# Next.js generated (regenerated on build/dev)
+next-env.d.ts
+*.tsbuildinfo
 *.log
 npm-debug.log*
 yarn-debug.log*
