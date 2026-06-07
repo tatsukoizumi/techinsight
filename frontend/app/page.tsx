@@ -1,7 +1,8 @@
 "use client";
 
 import { Info, Plus } from "lucide-react";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ArticleForm } from "@/components/ArticleForm";
 import { ArticleModal } from "@/components/ArticleModal";
@@ -16,29 +17,45 @@ import { useSearch } from "@/lib/hooks/useSearch";
 
 const PAGE_SIZE = 12;
 
-export default function HomePage() {
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [mode, setMode] = useState<SearchMode>("keyword");
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // The URL is the source of truth for the submitted query and mode, so the
+  // search state survives reloads and is shareable / back-forward navigable.
+  const submittedQuery = searchParams.get("q") ?? "";
+  const mode: SearchMode = searchParams.get("mode") === "semantic" ? "semantic" : "keyword";
+
+  const [query, setQuery] = useState(submittedQuery);
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Article | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Search runs only on submit (Enter), not on every keystroke.
+  // Keep the input box in sync with the URL (e.g. on back/forward).
+  useEffect(() => {
+    setQuery(submittedQuery);
+  }, [submittedQuery]);
+
   const searching = submittedQuery.trim().length > 0;
   const pendingSearch = query.trim() !== "" && query !== submittedQuery;
 
   const listQuery = useArticles({ page, size: PAGE_SIZE, category });
   const searchQuery = useSearch({ q: submittedQuery, mode, limit: 30, category }, searching);
-
-  function runSearch() {
-    setSubmittedQuery(query);
-    setPage(1);
-  }
-
   const createMutation = useCreateArticle();
+
+  // Merge updates into the current query string. Falsy values drop the param
+  // (mode=keyword is the default, so it stays out of the URL to keep it clean).
+  function setParams(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }
 
   const articles = searching ? (searchQuery.data?.items ?? []) : (listQuery.data?.items ?? []);
   const isLoading = searching ? searchQuery.isLoading : listQuery.isLoading;
@@ -76,14 +93,17 @@ export default function HomePage() {
           onQueryChange={(value) => {
             setQuery(value);
             // Clearing the box returns to the full list immediately.
-            if (value === "") setSubmittedQuery("");
+            if (value === "") setParams({ q: null });
           }}
-          onModeChange={setMode}
+          onModeChange={(value) => setParams({ mode: value === "semantic" ? "semantic" : null })}
           onCategoryChange={(value) => {
             setCategory(value);
             setPage(1);
           }}
-          onSubmit={runSearch}
+          onSubmit={() => {
+            setParams({ q: query.trim() || null });
+            setPage(1);
+          }}
         />
       </div>
 
@@ -149,5 +169,13 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }
