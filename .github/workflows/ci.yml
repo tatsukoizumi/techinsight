@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一ブランチの古い実行はキャンセルして無駄を省く
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-quality:
+    name: frontend quality (Biome + Knip + Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # mise.toml を単一ソースに Node / Python / uv を取得
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+      - name: Enable pnpm via corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Quality (Prettier + Biome + Knip)
+        run: pnpm quality
+
+  backend-quality:
+    name: backend quality (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+      - name: Sync dependencies
+        working-directory: backend
+        run: uv sync
+      - name: Ruff lint
+        working-directory: backend
+        run: uv run ruff check .
+      - name: Ruff format check
+        working-directory: backend
+        run: uv run ruff format --check .
+
+  backend-test:
+    name: backend test (pytest + testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+      - name: Sync dependencies
+        working-directory: backend
+        run: uv sync
+      # testcontainers が ubuntu runner の Docker で pgvector/pgvector:pg16 を起動する
+      - name: Pytest
+        working-directory: backend
+        run: uv run pytest -q
