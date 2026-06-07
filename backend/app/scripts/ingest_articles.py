@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import csv
-import hashlib
 import sys
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -25,13 +24,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.db import SessionLocal, engine
 from app.models.article import Article
+from app.services.articles import content_hash
 from app.services.embeddings import get_embedder
 
 CHUNK_SIZE = 256
-
-
-def _content_hash(title: str, content: str) -> str:
-    return hashlib.sha256((title + content).encode("utf-8")).hexdigest()
 
 
 def _parse_published_at(value: str) -> datetime:
@@ -70,7 +66,7 @@ async def ingest(csv_path: Path) -> None:
             pending: list[dict[str, object]] = []
             for r in chunk:
                 rid = int(r["id"])
-                chash = _content_hash(r["title"], r["content"])
+                chash = content_hash(r["title"], r["content"])
                 if existing.get(rid) == chash:
                     skipped += 1
                     continue
