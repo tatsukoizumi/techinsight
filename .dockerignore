@@ -1,0 +1,43 @@
+# VCS
+.git/
+.gitignore
+
+# Node
+node_modules/
+**/node_modules/
+**/.next/
+**/.turbo/
+**/dist/
+**/build/
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.coverage
+**/htmlcov/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Project artifacts not needed in containers
+docs/
+*.md
+!CLAUDE.md
+.editorconfig
+.prettierrc.json
+.prettierignore
+.claude/
+
+# data ディレクトリは migrator が volume mount で参照するため build context には含めない
+data/

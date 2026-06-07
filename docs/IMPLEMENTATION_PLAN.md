@@ -5,7 +5,7 @@
 ## 0a. プロジェクト基本ルール（CLAUDE.md と同期）
 
 1. フレームワーク・言語は最新バージョン（Node 24 LTS / Python 3.14 / FastAPI / Next.js / Biome / Prettier）
-2. ランタイム・ツールは **mise** で一元管理（ホスト・Docker 共通）
+2. ランタイム・ツールは **ホスト側で mise** 管理。**コンテナは公式 image** を使い、Dockerfile FROM 行と `mise.toml` で同じバージョンを書いて同期
 3. 不要なライブラリは入れない（極力薄い構成）
 4. dead-code は削除（未使用 export / file / dep）
 5. **品質ツール**で担保: frontend = Biome + Knip、backend = Ruff、docs = Prettier
@@ -44,7 +44,7 @@ techinsight/
 │   └── api-design.md            # 簡易 API 設計書（成果物）
 ├── backend/
 │   ├── pyproject.toml           # uv 管理
-│   ├── Dockerfile               # mise で Python 3.14 を入れる
+│   ├── Dockerfile               # python:3.14.5-slim + Astral 公式 uv COPY
 │   ├── alembic.ini
 │   ├── alembic/
 │   │   └── versions/
@@ -80,7 +80,7 @@ techinsight/
 │   ├── package.json
 │   ├── biome.json               # Biome 2.x（Lint + Format + Import 並び替え）
 │   ├── knip.json                # Knip（未使用 export / file / dep 検出）
-│   ├── Dockerfile               # mise で Node 24 を入れる
+│   ├── Dockerfile               # node:24.16.0-bookworm-slim + corepack 同梱 pnpm
 │   ├── next.config.mjs
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json
@@ -246,13 +246,13 @@ UX 工夫：
 
 ## 8. 実装フェーズ（推奨順序）
 
-1. **インフラ骨組み** — `docker-compose.yml`、空の backend / frontend Dockerfile、DB だけ起動して接続確認
-2. **DB & マイグレーション** — Alembic 設定、初回 migration（テーブル + インデックス + pgvector）
+1. ~~**インフラ骨組み**~~ ✅ 完了 — `docker-compose.yml`（4 サービス）、mise ベースの backend/frontend Dockerfile、最小 FastAPI（`/health`）、`.env.example` まで。`docker compose up` で db + backend が起動し `/health` が 200 を返す状態。migrator と frontend は placeholder コマンドで定義済（次フェーズで実体化）。
+2. **DB & マイグレーション** — Alembic 設定、初回 migration（pgvector 拡張 + articles テーブル + 各インデックス）。`migrator` サービスを実 alembic コマンドに差し替え。
 3. **Embedding サービス** — local provider 実装 → unit test
-4. **CSV 取り込みスクリプト** — 1,000 件取り込み、所要時間を計測
+4. **CSV 取り込みスクリプト** — 1,000 件取り込み、所要時間を計測。`migrator` で alembic 後に実行されるよう繋ぐ。
 5. **Backend CRUD API** — articles ルーター + repository + pytest（httpx + testcontainers）
 6. **検索 API** — keyword / semantic / hybrid 3 モード、pytest で順位検証
-7. **Frontend 骨組み** — Next.js セットアップ、API クライアント、一覧表示
+7. **Frontend 骨組み** — Next.js セットアップ、API クライアント、一覧表示。`frontend` サービスを `pnpm dev` に切り替え + `app/` を bind mount で HMR。
 8. **検索 UI + モーダル**
 9. **管理機能（作成・編集・削除）**
 10. **README / DB 設計書 / API 設計書執筆**

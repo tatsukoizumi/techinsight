@@ -1,0 +1,95 @@
+name: techinsight
+
+# ---------------------------------------------------------------------------
+# TechInsight 全サービス
+# 起動: `docker compose up --build`
+# 停止: `docker compose down`（DB データ保持） / `docker compose down -v`（DB データも削除）
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-techinsight}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techinsight_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-techinsight}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techinsight} -d ${POSTGRES_DB:-techinsight}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # migrator: alembic upgrade + CSV 取り込みを行う一回限りのサービス。
+  # 次フェーズで Alembic と ingest_articles を実装するまでは placeholder。
+  migrator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://techinsight:techinsight_dev@db:5432/techinsight}
+    volumes:
+      - ./data:/data:ro
+    command:
+      - sh
+      - -c
+      - 'echo "[migrator skeleton] alembic upgrade + ingest_articles は次フェーズで実装します。"'
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://techinsight:techinsight_dev@db:5432/techinsight}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      # python:3.14-slim には curl が入っていないので stdlib の urllib で叩く
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    # 開発時のホットリロード（uvicorn --reload と組み合わせ）
+    volumes:
+      - ./backend/app:/app/backend/app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    # 次フェーズで Next.js が入ったら `app/` を bind mount して HMR を効かせる。
+
+volumes:
+  pgdata:
