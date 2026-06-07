@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Info, Plus } from "lucide-react";
 import { useState } from "react";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ArticleForm } from "@/components/ArticleForm";
@@ -72,6 +72,13 @@ export default function HomePage() {
           }}
         />
       </div>
+
+      {searching && articles.length > 0 ? (
+        <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Info className="size-3.5 shrink-0" />
+          関連度が高い順に表示しています。数値が大きいほど検索キーワードとの関連が強いことを表す目安です（検索方法によって数値の幅は異なります）。
+        </p>
+      ) : null}
 
       {error ? (
         <p className="py-12 text-center text-sm text-destructive">
