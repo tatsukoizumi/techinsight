@@ -45,6 +45,11 @@ RUN uv sync --frozen --no-install-project
 # 依存レイヤの直後に置くことで app コード変更時に再ダウンロードしない。
 RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
+# モデル焼き込み後は HF Hub への通信を一切行わない（完全オフライン動作を保証）。
+# build 後に設定するのは、上の RUN でのダウンロードをブロックしないため。
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
 # アプリ本体
 COPY --chown=app:app backend/ /app/backend/
 
