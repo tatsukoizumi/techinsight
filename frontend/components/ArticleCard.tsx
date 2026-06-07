@@ -28,8 +28,8 @@ export function ArticleCard({ article, onClick }: Props) {
         <div className="flex items-center justify-between gap-2">
           <Badge variant="secondary">{article.category}</Badge>
           {hasScore(article) ? (
-            <Badge variant="outline" title="関連度スコア">
-              score {article.score.toFixed(3)}
+            <Badge variant="outline" title="検索キーワードとの関連度">
+              関連度 {article.score.toFixed(3)}
             </Badge>
           ) : null}
         </div>

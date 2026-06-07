@@ -32,7 +32,7 @@ export function SearchBar({
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="キーワードまたは自然文で検索…"
+            placeholder="キーワードや文章で検索…"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
           />
@@ -50,9 +50,15 @@ export function SearchBar({
       </div>
       <Tabs value={mode} onValueChange={(v) => onModeChange(v as SearchMode)}>
         <TabsList>
-          <TabsTrigger value="hybrid">ハイブリッド</TabsTrigger>
-          <TabsTrigger value="keyword">キーワード</TabsTrigger>
-          <TabsTrigger value="semantic">セマンティック</TabsTrigger>
+          <TabsTrigger value="hybrid" title="言葉の一致と意味の近さの両方から探します（おすすめ）">
+            おすすめ
+          </TabsTrigger>
+          <TabsTrigger value="keyword" title="入力した言葉が含まれる記事を探します">
+            言葉で探す
+          </TabsTrigger>
+          <TabsTrigger value="semantic" title="言い回しが違っても意味の近い記事を探します">
+            意味で探す
+          </TabsTrigger>
         </TabsList>
       </Tabs>
     </div>
