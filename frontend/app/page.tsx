@@ -61,8 +61,11 @@ function HomeContent() {
   const isLoading = searching ? searchQuery.isLoading : listQuery.isLoading;
   const error = searching ? searchQuery.error : listQuery.error;
 
-  // Top score in the current result set; relevance levels are graded against it.
-  const maxScore = searching
+  // Relevance is shown only for semantic search (cosine similarity); keyword
+  // ts_rank isn't surfaced. maxScore stays undefined otherwise, which hides the
+  // meter in ArticleCard.
+  const showRelevance = searching && mode === "semantic";
+  const maxScore = showRelevance
     ? Math.max(0, ...(searchQuery.data?.items ?? []).map((item) => item.score))
     : undefined;
 
@@ -107,7 +110,7 @@ function HomeContent() {
         />
       </div>
 
-      {searching && articles.length > 0 ? (
+      {showRelevance && articles.length > 0 ? (
         <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5 shrink-0" />
           関連度が高い順に表示しています。色付きのバーは検索キーワードとの関連の強さ（5
