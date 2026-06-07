@@ -26,7 +26,7 @@ services:
       retries: 10
 
   # migrator: alembic upgrade + CSV 取り込みを行う一回限りのサービス。
-  # 次フェーズで Alembic と ingest_articles を実装するまでは placeholder。
+  # CSV 取り込み (ingest_articles) は次フェーズで command に追加する。
   migrator:
     build:
       context: .
@@ -38,10 +38,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://techinsight:techinsight_dev@db:5432/techinsight}
     volumes:
       - ./data:/data:ro
-    command:
-      - sh
-      - -c
-      - 'echo "[migrator skeleton] alembic upgrade + ingest_articles は次フェーズで実装します。"'
+    command: ["uv", "run", "alembic", "upgrade", "head"]
     restart: "no"
 
   backend:
