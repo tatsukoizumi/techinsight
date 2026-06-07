@@ -52,12 +52,15 @@ export function SearchBar({
         <TabsList>
           <TabsTrigger value="hybrid" title="言葉の一致と意味の近さの両方から探します（おすすめ）">
             おすすめ
+            <span className="ml-1 text-[10px] opacity-60">ハイブリッド</span>
           </TabsTrigger>
           <TabsTrigger value="keyword" title="入力した言葉が含まれる記事を探します">
             言葉で探す
+            <span className="ml-1 text-[10px] opacity-60">キーワード</span>
           </TabsTrigger>
           <TabsTrigger value="semantic" title="言い回しが違っても意味の近い記事を探します">
             意味で探す
+            <span className="ml-1 text-[10px] opacity-60">セマンティック</span>
           </TabsTrigger>
         </TabsList>
       </Tabs>
