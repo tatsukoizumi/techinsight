@@ -33,9 +33,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app/backend
 USER app
 
+# HF キャッシュは app ユーザ書込可パスに固定。build 時のモデル焼き込みと
+# 実行時のロードで同じパスを使い、コンテナ起動時の再ダウンロードを防ぐ。
+ENV HF_HOME=/home/app/.cache/huggingface
+
 # 依存だけ先に install してレイヤキャッシュを効かせる
 COPY --chown=app:app backend/pyproject.toml backend/uv.lock /app/backend/
 RUN uv sync --frozen --no-install-project
+
+# ローカル埋め込みモデルをイメージに焼き込む（初回 up 時のオフライン即起動のため）。
+# 依存レイヤの直後に置くことで app コード変更時に再ダウンロードしない。
+RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
 # アプリ本体
 COPY --chown=app:app backend/ /app/backend/

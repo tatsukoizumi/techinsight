@@ -11,6 +11,9 @@ dependencies = [
     "alembic>=1.14",
     "pgvector>=0.3",
     "pydantic-settings>=2.6",
+    "sentence-transformers>=3.3",
+    "torch>=2.6",
+    "openai>=1.55",
 ]
 
 [dependency-groups]
@@ -22,6 +25,20 @@ dev = [
 
 [tool.uv]
 package = false
+
+# CPU-only torch keeps the backend image lean (no CUDA payload). macOS resolves
+# torch from PyPI (CPU build); Linux uses PyTorch's dedicated CPU wheel index.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
