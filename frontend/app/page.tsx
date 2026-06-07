@@ -38,6 +38,11 @@ export default function HomePage() {
   const isLoading = searching ? searchQuery.isLoading : listQuery.isLoading;
   const error = searching ? searchQuery.error : listQuery.error;
 
+  // Top score in the current result set; relevance levels are graded against it.
+  const maxScore = searching
+    ? Math.max(0, ...(searchQuery.data?.items ?? []).map((item) => item.score))
+    : undefined;
+
   function openArticle(article: Article) {
     setSelected(article);
     setModalOpen(true);
@@ -76,7 +81,8 @@ export default function HomePage() {
       {searching && articles.length > 0 ? (
         <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5 shrink-0" />
-          関連度が高い順に表示しています。数値が大きいほど検索キーワードとの関連が強いことを表す目安です（検索方法によって数値の幅は異なります）。
+          関連度が高い順に表示しています。色付きのバーは検索キーワードとの関連の強さ（5
+          段階）の目安です。
         </p>
       ) : null}
 
@@ -93,7 +99,12 @@ export default function HomePage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} onClick={() => openArticle(article)} />
+            <ArticleCard
+              key={article.id}
+              article={article}
+              maxScore={maxScore}
+              onClick={() => openArticle(article)}
+            />
           ))}
         </div>
       )}

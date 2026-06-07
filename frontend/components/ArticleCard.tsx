@@ -1,11 +1,15 @@
 "use client";
 
+import { RelevanceMeter } from "@/components/RelevanceMeter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Article, SearchResultItem } from "@/lib/api/types";
+import { relevanceLevel } from "@/lib/relevance";
 
 type Props = {
   article: Article | SearchResultItem;
+  /** Top score in the current result set, used to grade relevance (search only). */
+  maxScore?: number;
   onClick: () => void;
 };
 
@@ -13,7 +17,7 @@ function hasScore(article: Article | SearchResultItem): article is SearchResultI
   return "score" in article;
 }
 
-export function ArticleCard({ article, onClick }: Props) {
+export function ArticleCard({ article, maxScore, onClick }: Props) {
   return (
     <Card
       className="cursor-pointer transition-shadow hover:shadow-md"
@@ -27,10 +31,8 @@ export function ArticleCard({ article, onClick }: Props) {
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <Badge variant="secondary">{article.category}</Badge>
-          {hasScore(article) ? (
-            <Badge variant="outline" title="検索キーワードとの関連度">
-              関連度 {article.score.toFixed(3)}
-            </Badge>
+          {hasScore(article) && maxScore !== undefined ? (
+            <RelevanceMeter level={relevanceLevel(article.score, maxScore)} />
           ) : null}
         </div>
         <CardTitle className="line-clamp-2">{article.title}</CardTitle>
