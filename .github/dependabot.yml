@@ -1,0 +1,53 @@
+version: 2
+
+updates:
+  # フロントエンド（pnpm workspace。root の pnpm-lock.yaml が全体をカバー）
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+      prefix-development: "build"
+      include: "scope"
+    groups:
+      # 全更新を 1 PR にまとめる（major 含む）
+      frontend:
+        patterns:
+          - "*"
+
+  # バックエンド（uv ネイティブ対応。pyproject.toml + uv.lock を更新）
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+      prefix-development: "build"
+      include: "scope"
+    groups:
+      backend:
+        patterns:
+          - "*"
+
+  # GitHub Actions（CI で使う action を最新に保つ）
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+# Docker は対象外: コンテナの image バージョンは mise.toml と Dockerfile の
+# FROM 行を手動同期する運用のため（CLAUDE.md 基本ルール 2）、自動バンプしない。
