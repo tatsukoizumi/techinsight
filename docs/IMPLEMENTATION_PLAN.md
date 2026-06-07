@@ -241,6 +241,15 @@ volumes: { pgdata: {} }
 
 ## 7. フロントエンド画面
 
+### 7.0 フロントエンド技術スタック決定（2026-06-07）
+
+CLAUDE.md の「不要なライブラリを入れない／極力薄い構成」ルールを最優先に、以下を採用：
+
+- **UI コンポーネント: shadcn/ui（Radix UI ベース）** — コードを `components/ui/` に直接取り込む copy & paste 型。npm 依存は Radix primitives（`Dialog` / `Tabs` / `Select` など実際に使うもののみ）+ `class-variance-authority` / `clsx` / `tailwind-merge` / `lucide-react` に限定。**使う UI（Button / Card / Dialog / Input / Select / Tabs / Badge）だけ生成し、未使用は置かない**（Knip で担保）。Tailwind は最新版に追随。
+- **状態管理: React 標準のみ** — サーバ状態は **TanStack Query**、UI 状態（検索クエリ・モーダル開閉・フィルタ・ページ）は `useState` + URL `searchParams`。Zustand 等のグローバル状態ライブラリは導入しない（この規模では不要）。
+
+### 7.1 画面構成
+
 - `/`: 検索バー（モード選択タブ：ハイブリッド/キーワード/セマンティック）+ カテゴリフィルタ + 記事カード一覧 + ページネーション + 「新規作成」ボタン
 - 記事カードクリック → `ArticleModal` で全文表示。フッタに「編集」「削除」
 - 「編集」ボタン → 同じモーダル内で `ArticleForm` にスイッチ
