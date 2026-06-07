@@ -24,7 +24,7 @@ export type ArticleList = {
   size: number;
 };
 
-export type SearchMode = "hybrid" | "keyword" | "semantic";
+export type SearchMode = "keyword" | "semantic";
 
 export type SearchResultItem = Article & { score: number };
 

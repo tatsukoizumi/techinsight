@@ -1,4 +1,4 @@
-"""Search endpoint: keyword / semantic / hybrid."""
+"""Search endpoint: keyword / semantic."""
 
 from fastapi import APIRouter, Query
 
@@ -14,7 +14,7 @@ async def search(
     session: SessionDep,
     embedder: EmbedderDep,
     q: str = Query(min_length=1),
-    mode: search_service.SearchMode = "hybrid",
+    mode: search_service.SearchMode = "keyword",
     limit: int = Query(20, ge=1, le=100),
     category: str | None = None,
 ) -> SearchResponse:

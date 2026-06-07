@@ -11,10 +11,6 @@ from app.models.article import Article
 
 Sort = Literal["newest", "oldest"]
 
-# Search candidate pool size fetched from each retriever before fusion/limit.
-SEARCH_POOL = 50
-
-
 def _to_vector_literal(vector: list[float]) -> str:
     """Render a Python vector as a pgvector text literal: [a,b,c]."""
     return "[" + ",".join(repr(x) for x in vector) + "]"

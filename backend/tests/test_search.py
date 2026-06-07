@@ -1,24 +1,8 @@
-"""Search tests: RRF as a pure function + keyword/semantic/hybrid over real PG."""
+"""Search tests: keyword and semantic retrieval over a real pgvector PG."""
 
 from __future__ import annotations
 
 from httpx import AsyncClient
-
-from app.services.search import reciprocal_rank_fusion
-
-
-def test_rrf_rewards_agreement_across_rankings() -> None:
-    # doc 3 appears in both lists, docs 1 and 2 only once each.
-    fused = reciprocal_rank_fusion([[1, 3], [2, 3]], k=60)
-    scores = dict(fused)
-    assert fused[0][0] == 3  # agreement wins
-    assert abs(scores[1] - scores[2]) < 1e-9  # symmetric singletons
-
-
-def test_rrf_respects_rank_within_list() -> None:
-    fused = reciprocal_rank_fusion([[10, 20, 30]])
-    ids = [doc_id for doc_id, _ in fused]
-    assert ids == [10, 20, 30]
 
 
 async def _create(client: AsyncClient, title: str, content: str, category: str = "Backend") -> int:
@@ -60,19 +44,6 @@ async def test_semantic_ranking(client: AsyncClient) -> None:
     items = resp.json()["items"]
     assert items[0]["id"] == pg_id  # closest by cosine similarity
     assert items[0]["score"] > items[-1]["score"]
-
-
-async def test_hybrid_search_returns_fused_results(client: AsyncClient) -> None:
-    pg_id = await _create(client, "PostgreSQL guide", "postgres indexes and vectors")
-    await _create(client, "Docker basics", "containers and images")
-
-    resp = await client.get("/api/v1/search", params={"q": "postgres", "mode": "hybrid"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["mode"] == "hybrid"
-    ids = [item["id"] for item in body["items"]]
-    assert pg_id in ids
-    assert ids[0] == pg_id  # matches both keyword and semantic → top after fusion
 
 
 async def test_semantic_category_filter(client: AsyncClient) -> None:

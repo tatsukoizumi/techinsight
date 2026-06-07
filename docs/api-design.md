@@ -20,7 +20,7 @@ OpenAPI ドキュメントは起動後 `http://localhost:8000/docs`（Swagger UI
 | POST   | `/api/v1/articles`      | 記事作成（embedding 自動生成）                 |
 | PUT    | `/api/v1/articles/{id}` | 記事更新（content 変化時のみ再 embed）         |
 | DELETE | `/api/v1/articles/{id}` | 記事削除                                       |
-| GET    | `/api/v1/search`        | 検索（hybrid / keyword / semantic）            |
+| GET    | `/api/v1/search`        | 検索（keyword / semantic）                     |
 
 ## モデル
 
@@ -81,26 +81,24 @@ OpenAPI ドキュメントは起動後 `http://localhost:8000/docs`（Swagger UI
 
 クエリパラメータ:
 
-| 名前       | 型     | 既定値   | 説明                              |
-| ---------- | ------ | -------- | --------------------------------- |
-| `q`        | string | （必須） | 検索クエリ（1 文字以上）          |
-| `mode`     | enum   | `hybrid` | `hybrid` / `keyword` / `semantic` |
-| `limit`    | int    | 20       | 返却件数（1–100）                 |
-| `category` | string | —        | カテゴリ絞り込み                  |
+| 名前       | 型     | 既定値    | 説明                     |
+| ---------- | ------ | --------- | ------------------------ |
+| `q`        | string | （必須）  | 検索クエリ（1 文字以上） |
+| `mode`     | enum   | `keyword` | `keyword` / `semantic`   |
+| `limit`    | int    | 20        | 返却件数（1–100）        |
+| `category` | string | —         | カテゴリ絞り込み         |
 
 レスポンス: `{ items: (Article & { score })[], total, mode, query }`。`score` は
 
 - `keyword`: `ts_rank`（PostgreSQL 全文検索スコア）
 - `semantic`: コサイン類似度（`1 - (embedding <=> query_vec)`）
-- `hybrid`: RRF（Reciprocal Rank Fusion）スコア
 
 ### 検索モードの仕組み
 
-1. **keyword**: `tsvector @@ plainto_tsquery` を GIN インデックスで評価し `ts_rank` 順。
-2. **semantic**: クエリを埋め込みベクトル化し、pgvector の HNSW でコサイン近傍探索。
-3. **hybrid**: 上記 2 つの上位候補（各 50 件）を取得し、**RRF（k=60）** で順位を融合。
-   `score = Σ 1 / (k + rank)`。固有名詞・短いクエリに強いキーワード検索と、言い換えに
-   強いセマンティック検索の長所を両取りする。
+1. **keyword**: `tsvector @@ plainto_tsquery` を GIN インデックスで評価し `ts_rank` 順。固有名詞・完全一致に強い。
+2. **semantic**: クエリを埋め込みベクトル化し、pgvector の HNSW でコサイン近傍探索。言い換え・自然文に強い。
+
+`score` は検索方法ごとにスケールが異なるため、UI では結果セット内の相対値を 5 段階に正規化して表示する。
 
 ## ステータスコード
 

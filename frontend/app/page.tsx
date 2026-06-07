@@ -12,25 +12,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import type { Article, SearchMode } from "@/lib/api/types";
 import { useCreateArticle } from "@/lib/hooks/useArticleMutations";
 import { useArticles } from "@/lib/hooks/useArticles";
-import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useSearch } from "@/lib/hooks/useSearch";
 
 const PAGE_SIZE = 12;
 
 export default function HomePage() {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<SearchMode>("hybrid");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [mode, setMode] = useState<SearchMode>("keyword");
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Article | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const debouncedQuery = useDebounce(query, 300);
-  const searching = debouncedQuery.trim().length > 0;
+  // Search runs only on submit (Enter), not on every keystroke.
+  const searching = submittedQuery.trim().length > 0;
+  const pendingSearch = query.trim() !== "" && query !== submittedQuery;
 
   const listQuery = useArticles({ page, size: PAGE_SIZE, category });
-  const searchQuery = useSearch({ q: debouncedQuery, mode, limit: 30, category }, searching);
+  const searchQuery = useSearch({ q: submittedQuery, mode, limit: 30, category }, searching);
+
+  function runSearch() {
+    setSubmittedQuery(query);
+    setPage(1);
+  }
 
   const createMutation = useCreateArticle();
 
@@ -66,15 +72,18 @@ export default function HomePage() {
           query={query}
           mode={mode}
           category={category}
+          pendingSearch={pendingSearch}
           onQueryChange={(value) => {
             setQuery(value);
-            setPage(1);
+            // Clearing the box returns to the full list immediately.
+            if (value === "") setSubmittedQuery("");
           }}
           onModeChange={setMode}
           onCategoryChange={(value) => {
             setCategory(value);
             setPage(1);
           }}
+          onSubmit={runSearch}
         />
       </div>
 
