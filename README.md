@@ -6,6 +6,8 @@
 > 評価者のローカルマシンで **`docker compose up` だけ**で、API キー不要・完全オフラインで
 > 全機能が動くことを最優先要件として設計している。
 
+![TechInsight デモ](docs/assets/demo.gif)
+
 ## クイックスタート
 
 前提は **Docker** と **Docker Compose v2** のみ（言語ランタイムのローカル導入は不要）。
