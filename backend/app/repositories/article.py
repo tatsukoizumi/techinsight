@@ -11,6 +11,7 @@ from app.models.article import Article
 
 Sort = Literal["newest", "oldest"]
 
+
 def _to_vector_literal(vector: list[float]) -> str:
     """Render a Python vector as a pgvector text literal: [a,b,c]."""
     return "[" + ",".join(repr(x) for x in vector) + "]"
