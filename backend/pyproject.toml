@@ -5,8 +5,8 @@ description = "TechInsight backend API"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.32",
-    "sqlalchemy[asyncio]>=2.0",
+    "uvicorn[standard]>=0.49.0",
+    "sqlalchemy[asyncio]>=2.0.50",
     "asyncpg>=0.30",
     "alembic>=1.14",
     "pgvector>=0.3",
@@ -22,7 +22,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "httpx>=0.27",
-    "testcontainers[postgres]>=4.8",
+    "testcontainers[postgres]>=4.14.2",
 ]
 
 [tool.uv]
