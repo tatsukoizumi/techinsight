@@ -22,11 +22,12 @@ jobs:
           install: true
           cache: true
       - name: Enable pnpm via corepack
-        # mise は node を shims 経由で提供するため、corepack enable が作る pnpm シムは
-        # 実 node bin に入る。そのディレクトリを PATH に追加しないと後続で pnpm が見つからない。
+        # mise は node を shims 経由で提供する（shim は実体スクリプトでシンボリックリンクではない）。
+        # corepack enable が作る pnpm シムは実 node bin に入るため、`mise which node` で実バイナリを
+        # 解決し、その bin を PATH に追加しないと後続のステップで pnpm が見つからない。
         run: |
           corepack enable
-          echo "$(dirname "$(readlink -f "$(command -v corepack)")")" >> "$GITHUB_PATH"
+          echo "$(dirname "$(mise which node)")" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Quality (Prettier + Biome + Knip)
