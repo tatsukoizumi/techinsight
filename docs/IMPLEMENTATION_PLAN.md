@@ -81,7 +81,7 @@ techinsight/
 │   ├── package.json
 │   ├── biome.json               # Biome 2.x（Lint + Format + Import 並び替え）
 │   ├── knip.json                # Knip（未使用 export / file / dep 検出）
-│   ├── Dockerfile               # node:24.16.0-bookworm-slim + corepack 同梱 pnpm
+│   ├── Dockerfile               # node:24.16.0-bookworm-slim + npm 導入 pnpm
 │   ├── next.config.mjs
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json

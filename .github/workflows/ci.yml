@@ -16,18 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # mise.toml を単一ソースに Node / Python / uv を取得
+      # mise.toml の Node / Python / uv / pnpm を取得（pnpm も mise 管理）
       - uses: jdx/mise-action@v2
         with:
           install: true
           cache: true
-      - name: Enable pnpm via corepack
-        # mise は node を shims 経由で提供する（shim は実体スクリプトでシンボリックリンクではない）。
-        # corepack enable が作る pnpm シムは実 node bin に入るため、`mise which node` で実バイナリを
-        # 解決し、その bin を PATH に追加しないと後続のステップで pnpm が見つからない。
-        run: |
-          corepack enable
-          echo "$(dirname "$(mise which node)")" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Quality (Prettier + Biome + Knip)

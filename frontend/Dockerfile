@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
-# Frontend: 公式 node:24-bookworm-slim + corepack 同梱の pnpm。
+# Frontend: 公式 node:24-bookworm-slim + npm でグローバル導入した pnpm
 # build context はリポジトリルート。
 #
 # バージョンはホスト側の mise.toml / packageManager と一致させること:
@@ -16,11 +16,9 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV COREPACK_ENABLE_AUTO_PIN=0 \
-    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-
-# corepack 有効化（root 権限で /usr/local/bin に書く）
-RUN corepack enable
+# pnpm をグローバル導入（root 権限で /usr/local に書く）。
+# バージョンは mise.toml / package.json の packageManager と一致させること。
+RUN npm install -g pnpm@11.5.2
 
 # /app を node ユーザ所有に。以降は node 同梱の非 root ユーザで作業する。
 RUN mkdir -p /app && chown -R node:node /app

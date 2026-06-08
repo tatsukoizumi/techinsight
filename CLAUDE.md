@@ -14,18 +14,17 @@ TechInsight は技術記事を対象とした AI 搭載ナレッジベース。C
 - **Backend:** Python **3.14**（最新安定版）/ FastAPI / SQLAlchemy 2.x (async) / Alembic / Pydantic v2
 - **Frontend:** Next.js（最新）/ TypeScript（最新）/ React / Tailwind CSS / TanStack Query
 - **Node:** **24 LTS**（latest LTS）— `mise.toml` で固定
-- **pnpm:** **11.5.2** — `packageManager` フィールドで固定、Node 同梱の corepack でブートストラップ
+- **pnpm:** **11.5.2** — `mise.toml` で管理（`packageManager` フィールドにも明記して同期）。
 - **DB:** PostgreSQL 16 + `pgvector` 拡張
 - **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`（384 次元、ローカル動作・APIキー不要がデフォルト）。`OPENAI_API_KEY` が環境変数にあれば OpenAI `text-embedding-3-small` に切り替える provider 抽象を持つ。
-- **Infra:** Docker Compose（`db` / `backend` / `frontend` / 一回限りの `migrator` サービス）。コンテナは公式 image（`python:3.14.5-slim` + Astral 公式 uv バイナリ COPY、`node:24.16.0-bookworm-slim` + corepack）を使用。ホスト側の `mise.toml` と同じバージョンを Dockerfile FROM 行に書いて同期。
+- **Infra:** Docker Compose（`db` / `backend` / `frontend` / 一回限りの `migrator` サービス）。コンテナは公式 image（`python:3.14.5-slim` + Astral 公式 uv バイナリ COPY、`node:24.16.0-bookworm-slim` + `npm i -g pnpm@11.5.2`）を使用。ホスト側の `mise.toml` と同じバージョンを Dockerfile FROM 行に書いて同期。
 - **Monorepo / 品質ツール:** pnpm workspaces。**Prettier**（root: Markdown / YAML / root JSON）+ **Biome**（frontend: Lint + Format + Import 並び替え）+ **Knip**（frontend: 未使用 export / file / dep 検出）。Backend 側は **Ruff**（Lint + Format）。役割が重複しないよう `.prettierignore` で `frontend/` を除外している。
 
 ## 主要コマンド
 
 ```bash
-# 初回セットアップ（mise でランタイム取得 → corepack で pnpm 有効化 → 依存）
-mise install                                   # Node 24 + Python 3.14 + uv（mise.toml に従う）
-corepack enable                                # Node 同梱の corepack で pnpm 11.5.2 を有効化
+# 初回セットアップ（mise でランタイム + pnpm 取得 → 依存）
+mise install                                   # Node 24 + Python 3.14 + uv + pnpm 11.5.2（mise.toml に従う）
 pnpm install                                   # workspace 全体（root + frontend）
 
 # 環境変数（任意。docker-compose.yml にデフォルトが入っているので未作成でも起動はする）
