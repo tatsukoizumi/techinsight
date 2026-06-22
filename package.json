@@ -23,6 +23,6 @@
     "quality": "pnpm format:check && pnpm fe:quality"
   },
   "devDependencies": {
-    "prettier": "^3.3.3"
+    "prettier": "^3.8.4"
   }
 }
